@@ -1,0 +1,36 @@
+# 变更记录: 20261126-1040 新增 .playwright-mcp/ 忽略规则（本机浏览器调试产物）
+.DS_Store
+__pycache__/
+node_modules/
+.venv/
+dist/
+build/
+
+# 忽略个人私有配置，但保留团队共享的 settings 和 extensions
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# 忽略环境变量
+.env
+.env.local
+.env.production
+.env.release
+
+# 忽略证书文件
+*.pem
+*.key
+*.p12
+aws-credentials
+.aws/
+
+# 忽略各类密钥
+*.secret
+secrets.yaml
+secrets.toml
+
+# 忽略 collectstatic 生成的静态文件总仓库（本地残留，容器内启动时现收）
+staticfiles/
+
+# 浏览器自动化工具（Playwright MCP）的截图、快照与控制台日志，属于本机调试产物
+.playwright-mcp/

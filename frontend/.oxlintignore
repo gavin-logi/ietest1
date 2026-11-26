@@ -1,0 +1,8 @@
+# 变更记录: 20261124-1630 新增：Oxlint 不扫描依赖与构建产物（此前 lint 脚本的 --fix 会改写 node_modules）
+# 变更记录: 20261124-1645 增加 **/*.vue：.vue 统一交给 ESLint，避免两个工具重复检查同一文件
+node_modules/
+dist/
+dist-ssr/
+coverage/
+.vite/
+**/*.vue

@@ -1,0 +1,120 @@
+# 变更记录: 20261116-1520 初始创建：一个镜像三个角色（web / scheduler / migrate）+ postgres + minio + 一次性建桶容器
+# 变更记录: 20261116-1545 minio 改用 cgr.dev/chainguard 镜像；minio-init 去掉 sh，改用 MC_HOST_local + restart 重试
+# 变更记录: 20261124-1648 镜像名 guestbook:local 改为 barebone:local（项目名残留修正）
+# 变更记录: 20261125-0956 S3_PUBLIC_ENDPOINT_URL 改为 localhost:9000，去掉 hosts 依赖（应用内部仍用 minio:9000，见 INIT.md 3.1）
+# 变更记录: 20261125-1035 端口绑定区分用途：postgres、minio 控制台仅本机；minio S3 API 与 web 对局域网开放；S3_PUBLIC_ENDPOINT_URL 允许 .env 覆盖
+# 变更记录: 20261126-0841 镜像名改为 ${APP_NAME}:local，派生项目只改 .env，同机多个项目不再共用同一镜像标签
+# 变更记录: 20261126-1436 宿主机端口可由 .env 覆盖（POSTGRES/MINIO/MINIO_CONSOLE/MOCK_IDP/WEB_HOST_PORT，默认值不变），避免与同机其它项目冲突
+# 变更记录: 20261126-0902 新增 mock-idp（本地模拟 OIDC 身份提供方，仅绑定本机 8090）
+# 变更记录: 20261126-1050 build 增加 APP_DISPLAY_NAME 构建参数，容器内页面标题与本地一致
+x-app-common: &app-common
+  # 镜像名取自 .env 的 APP_NAME（未设置时为 app）
+  image: ${APP_NAME:-app}:local
+  build:
+    context: .
+    # 页面标题取自 .env 的 APP_DISPLAY_NAME，构建时传入前端（构建上下文不含 .env）
+    args:
+      APP_DISPLAY_NAME: ${APP_DISPLAY_NAME:-App}
+  env_file: .env
+  # 容器网络内的地址覆盖 .env 里的本机地址（environment 优先于 env_file）
+  environment:
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    S3_ENDPOINT_URL: http://minio:9000
+    # 预签名 URL 的公开地址：默认 localhost:9000（本机浏览器）；跨设备测试时在根目录 .env 中设为 http://<本机局域网IP>:9000
+    S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:${MINIO_HOST_PORT:-9000}}
+    S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+    S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"  # 仅本机 runserver 使用，不对局域网开放
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: cgr.dev/chainguard/minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "0.0.0.0:${MINIO_HOST_PORT:-9000}:9000"  # S3 API：对局域网开放，跨设备测试附件上传下载需要
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-9001}:9001"  # 控制台：仅本机
+    volumes:
+      - miniodata:/data
+
+  # 一次性容器：等 minio 就绪后建桶，幂等，跑完退出
+  minio-init:
+    image: cgr.dev/chainguard/minio-client
+    depends_on:
+      - minio
+    # 镜像无 shell：alias 用 MC_HOST_local 环境变量设置；minio 未就绪时失败会被重启重试
+    restart: "on-failure:20"
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000
+    command: ["mb", "--ignore-existing", "local/${S3_BUCKET}"]
+
+  # 本地模拟 OIDC 身份提供方（替代 Okta，仅开发用）。登录页输入的用户名即为工号（employeeNumber）；
+  # 输入 no-employee-number 可模拟 IdP 未返回 employeeNumber 的情况。不校验 Client Secret 与 redirect_uri。
+  # issuer 为 http://localhost:8090/default，配合本机直跑的后端使用（见 INIT.md 4.5）。
+  # 只绑定本机：任何人都能用它签发令牌，绝不能对局域网开放。
+  mock-idp:
+    image: ghcr.io/navikt/mock-oauth2-server:7.0.2
+    ports:
+      - "127.0.0.1:${MOCK_IDP_HOST_PORT:-8090}:8080"
+    environment:
+      # $$ 防止 compose 把 $${subject} 当作变量替换；mock 服务会把它替换为登录页输入的用户名
+      JSON_CONFIG: >-
+        {"interactiveLogin": true,
+         "tokenCallbacks": [{"issuerId": "default", "tokenExpiry": 3600, "requestMappings": [
+           {"requestParam": "subject", "match": "no-employee-number",
+            "claims": {"email": "no-employee-number@example.com", "name": "No EmployeeNumber"}},
+           {"requestParam": "subject", "match": ".*",
+            "claims": {"employeeNumber": "$${subject}", "email": "user$${subject}@example.com",
+                       "given_name": "Test", "family_name": "$${subject}", "name": "Test $${subject}"}}
+         ]}]}
+
+  # 一次性容器：建表，跑完退出
+  migrate:
+    <<: *app-common
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    <<: *app-common
+    command: ["web"]
+    ports:
+      - "0.0.0.0:${WEB_HOST_PORT:-8000}:8000"  # 对局域网开放，便于跨设备测试 web
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+
+  # 定时任务进程：副本数必须锁 1
+  scheduler:
+    <<: *app-common
+    command: ["scheduler"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  miniodata:

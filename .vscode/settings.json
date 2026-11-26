@@ -1,0 +1,65 @@
+{
+  // 变更记录: 20261125-1119 ESLint 只校验 Vue 文件，JavaScript 和 TypeScript 由 Oxlint 负责
+  // ==========================================
+  // 1. 全局基础排版规范（与后端 Ruff、前端 Prettier 对齐）
+  // ==========================================
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "editor.formatOnSave": true,
+
+  // ==========================================
+  // 2. Python / Django 后端配置（全权交给 Ruff）
+  // ==========================================
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.tabSize": 4,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  // 减少 VS Code 对迁移与依赖目录的文件监听开销（只影响监听，不影响搜索；搜索排除需用 search.exclude）
+  "files.watcherExclude": {
+    "**/migrations/**": true,
+    "**/.venv/**": true,
+    "**/node_modules/**": true
+  },
+
+  // ==========================================
+  // 3. Vue 3 前端配置（Prettier 排版 + ESLint 修复）
+  // ==========================================
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+
+  // 保存时自动运行 ESLint 修复逻辑问题
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // 适配 ESLint 9+ 扁平配置 (eslint.config.js)
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["vue"],
+
+  // 前端位于 frontend/ 子目录：auto 模式会自动识别 frontend/eslint.config.js 与 node_modules，无需手动指定路径
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "python.terminal.useEnvFile": true
+}

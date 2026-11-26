@@ -1,0 +1,55 @@
+# 变更记录: 20261125-0824 新增 frontend-type-check 本地钩子（vue-tsc），与 Oxlint/ESLint/Prettier 并列
+# 变更记录: 20261126-0922 新增 backend-check 本地钩子（scripts/backend-check.sh：Django 检查、迁移漂移、测试）
+repos:
+  # 1. 拦截直接向 main / master / dev 分支提交
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'master', '--branch', 'dev']
+
+  # 2. 后端 Python / Django：Ruff 检查 + 格式化
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.14  # 可根据实际版本调整
+    hooks:
+      - id: ruff-check
+        args: [--fix] # 自动修复可修复的问题
+      - id: ruff-format # 自动格式化代码
+
+  # 3. 前端 Vue：本地调用项目安装的 ESLint 和 Prettier（推荐用 local，确保和 package.json 版本一致）
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: ESLint (Vue)
+        entry: npm --prefix frontend run lint # 假设前端代码在 frontend 目录
+        language: system
+        files: ^frontend/.*\.(js|ts|vue)$
+        pass_filenames: false
+      - id: frontend-format
+        name: Prettier (Vue)
+        # 从仓库根目录执行时，Prettier 不会自动读取 frontend/.prettierignore，需要显式指定
+        entry: npx --prefix frontend prettier --check --ignore-path frontend/.prettierignore
+        language: system
+        files: ^frontend/.*\.(js|ts|vue|css|scss|json)$
+      - id: frontend-type-check
+        name: Type check (vue-tsc)
+        entry: npm --prefix frontend run type-check
+        language: system
+        files: ^frontend/.*\.(ts|vue)$
+        pass_filenames: false
+
+  # 3b. 后端代码审查门禁：Django 检查、迁移漂移、测试套件（scripts/backend-check.sh）
+  - repo: local
+    hooks:
+      - id: backend-check
+        name: Backend check (Django check, migrations, tests)
+        entry: sh scripts/backend-check.sh
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+
+  # 4. 敏感信息泄露拦截（Gitleaks）
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2 # 可通过 pre-commit autoupdate 更新到最新版本
+    hooks:
+      - id: gitleaks

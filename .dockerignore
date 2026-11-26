@@ -1,0 +1,16 @@
+# 挡在镜像门口：密钥、虚拟环境、缓存、生成物、本机依赖。这些在镜像里要么不需要，要么是现造的
+# 变更记录: 20261125-1035 虚拟环境改为 **/ 前缀，覆盖 backend/.venv；增加密钥文件排除
+.git
+.env
+**/.env
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/dist
+**/*.pem
+**/*.key
+**/*.p12
+**/.aws/
+backend/staticfiles
