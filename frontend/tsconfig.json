@@ -1,0 +1,15 @@
+{
+  // 变更记录: 20261124-1630 新增：类型检查配置（vue-tsc），负责 .ts / .vue 的未定义标识符等类型级检查
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}

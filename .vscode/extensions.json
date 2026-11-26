@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    // --- Python / Django 后端 ---
+    "ms-python.python",
+    "charliermarsh.ruff",
+
+    // --- Vue 3 前端 ---
+    "Vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "oxc.oxc-vscode",
+
+    // --- 通用辅助（可选，方便编辑 yaml 和 toml 配置） ---
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml"
+  ]
+}

@@ -1,0 +1,6 @@
+# 变更记录: 20261124-1637 增加 package-lock.json：锁文件由 npm 生成，不应被格式化
+dist
+node_modules
+coverage
+*.min.js
+package-lock.json
